@@ -1,0 +1,27 @@
+{
+  "name": "starry-learning",
+  "version": "0.1.0",
+  "private": true,
+  "main": "desktop/main.cjs",
+  "scripts": {
+    "build": "node desktop/build.cjs",
+    "start": "electron .",
+    "preview": ".build/learning-server",
+    "build:frontend": "node desktop/build.cjs frontend",
+    "build:backend": "node desktop/build.cjs backend",
+    "test": "node --test ui/grades.test.mjs",
+    "prestart": "node desktop/check-electron.cjs"
+  },
+  "dependencies": {
+    "electron": "39.8.7",
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.5"
+  },
+  "allowScripts": {
+    "electron@39.8.7": true,
+    "esbuild": true
+  }
+}
