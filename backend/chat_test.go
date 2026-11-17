@@ -47,10 +47,13 @@ func TestChatSendsTutorPromptAndProgress(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 			t.Fatal(err)
 		}
+		if len(payload.Messages) == 2 && strings.Contains(payload.Messages[0].Content, "审核下一条消息") {
+			return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`{"choices":[{"message":{"content":"ALLOW"}}]}`))}, nil
+		}
 		if payload.Model != "demo" || len(payload.Messages) != 2 ||
 			payload.Messages[0].Role != "system" ||
-			!strings.Contains(payload.Messages[0].Content, `"当前游戏":"分数披萨店"`) ||
-			!strings.Contains(payload.Messages[0].Content, `"当前关历史星数":0`) ||
+			!strings.Contains(payload.Messages[0].Content, `"当前游戏":"喜马拉雅风筝节"`) ||
+			!strings.Contains(payload.Messages[0].Content, `"当前任务历史徽章":0`) ||
 			!strings.Contains(payload.Messages[0].Content, `"当前站":2`) ||
 			strings.Contains(payload.Messages[0].Content, "fake-key") ||
 			payload.Messages[1].Content != "给我一点提示" {
@@ -62,7 +65,7 @@ func TestChatSendsTutorPromptAndProgress(t *testing.T) {
 	request := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:8080/api/chat", strings.NewReader(`{
 		"url":"https://api.example.test/v1","model":"demo","key":"fake-key",
 		"history":[{"role":"user","content":"给我一点提示"}],
-		"progress":{"年级":5,"当前游戏":"分数披萨店","当前站":2,"当前关历史星数":0}
+		"progress":{"已获任务徽章":3,"当前游戏":"喜马拉雅风筝节","当前站":2,"当前任务历史徽章":0}
 	}`))
 	request.Header.Set("Content-Type", "application/json")
 	response := httptest.NewRecorder()
@@ -85,6 +88,32 @@ func TestChatRejectsOtherBrowserOrigins(t *testing.T) {
 		handler.ServeHTTP(response, request)
 		if response.Code != http.StatusForbidden {
 			t.Fatalf("cross-origin request returned %d", response.Code)
+		}
+	}
+}
+
+func TestParentUnlockRequiresConfiguredPIN(t *testing.T) {
+	t.Setenv("K_GAME_PARENT_PIN", "example-pin")
+	for pin, expected := range map[string]int{"wrong": http.StatusForbidden, "example-pin": http.StatusNoContent} {
+		req := httptest.NewRequest("POST", "http://127.0.0.1/api/parent/unlock", strings.NewReader(`{"pin":"`+pin+`"}`))
+		req.Header.Set("Content-Type", "application/json")
+		response := httptest.NewRecorder()
+		unlockParentSettings(response, req)
+		if response.Code != expected {
+			t.Fatalf("got %d, want %d", response.Code, expected)
+		}
+	}
+}
+
+func TestChildReviewRejectsUnexpectedVerdicts(t *testing.T) {
+	for _, verdict := range []string{"ALLOW", "BLOCK", "ALLOW with caveats", ""} {
+		body, _ := json.Marshal(map[string]any{"choices": []map[string]any{{"message": chatMessage{Content: verdict}}}})
+		client := &http.Client{Transport: chatTransport(func(_ *http.Request) (*http.Response, error) {
+			return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(string(body)))}, nil
+		})}
+		req := httptest.NewRequest("POST", "http://127.0.0.1/api/chat", nil)
+		if allowedForChildren(req, client, modelSettings{URL: "https://example.test", Model: "test"}, "test content") != (verdict == "ALLOW") {
+			t.Fatalf("unexpected decision for %q", verdict)
 		}
 	}
 }

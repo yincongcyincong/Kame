@@ -8,6 +8,10 @@ const dictationHint = systemDictationHint();
 export function Chat({ progress, settings, setSettings }) {
   const [visible, setVisible] = useState(true);
   const [draft, setDraft] = useState(initialSettings);
+  const [parentGate, setParentGate] = useState(false);
+  const [pin, setPIN] = useState('');
+  const [pinError, setPINError] = useState('');
+  const [unlocking, setUnlocking] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [question, setQuestion] = useState('');
@@ -148,8 +152,29 @@ export function Chat({ progress, settings, setSettings }) {
   function openSettings() {
     setAutoDraft(false);
     clearTimeout(sendTimer.current);
-    setDraft(settings ? { ...settings, key: '' } : initialSettings);
-    setSettingsOpen(true);
+    setPIN('');
+    setPINError('');
+    setParentGate(true);
+  }
+
+  async function unlockSettings(event) {
+    event.preventDefault();
+    if (unlocking) return;
+    setUnlocking(true);
+    try {
+      const response = await fetch('/api/parent/unlock', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pin }),
+      });
+      if (!response.ok) throw new Error((await response.text()).trim());
+      setDraft(settings ? { ...settings, key: '' } : initialSettings);
+      setParentGate(false);
+      setSettingsOpen(true);
+    } catch (error) {
+      setPINError(error.message);
+    } finally {
+      setPIN('');
+      setUnlocking(false);
+    }
   }
 
   function saveSettings(event) {
@@ -182,7 +207,16 @@ export function Chat({ progress, settings, setSettings }) {
         }} aria-label="收起聊天">收起</button>
       </div>
     </div>
-    {settingsOpen ? <form className="chat-settings" onSubmit={saveSettings} autoComplete="off">
+    {parentGate ? <form className="chat-settings" onSubmit={unlockSettings}>
+      <h2>家长区</h2>
+      <label>家长密码<input type="password" required autoComplete="off" value={pin} maxLength={128}
+        onChange={event => setPIN(event.target.value)} /></label>
+      {pinError && <p role="alert" className="chat-error">{pinError}</p>}
+      <div className="chat-actions">
+        <button className="chat-send" disabled={unlocking}>解锁</button>
+        <button type="button" disabled={unlocking} onClick={() => { setParentGate(false); setPIN(''); }}>返回</button>
+      </div>
+    </form> : settingsOpen ? <form className="chat-settings" onSubmit={saveSettings} autoComplete="off">
       <h2>模型设置</h2>
       <label>API 地址
         <input type="url" required maxLength={500} placeholder="https://example.com/v1" value={draft.url}

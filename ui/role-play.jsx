@@ -1,8 +1,11 @@
-import React, { useRef, useState } from 'react';
+import { createJojoActor, handoffDuration } from './jojo-actor.mjs';
+import React, { useEffect, useRef, useState } from 'react';
 import { matchingSuspects } from './role-play-data.mjs';
+import { Investigation } from './detective-3d.jsx';
+import { LanguageSwitch } from './jojo-play.jsx';
 import { speak } from './speech.mjs';
 
-export function RangeStage({ stage, theme, onPass }) {
+export function FlatRangeStage({ stage, theme, onPass }) {
   const [shot, setShot] = useState(null);
   const [hit, setHit] = useState(false);
   const [checked, setChecked] = useState(null);
@@ -20,9 +23,6 @@ export function RangeStage({ stage, theme, onPass }) {
   }
 
   return <div className="range-stage">
-    <p className="range-subject">{stage.subject} · 答题打靶</p>
-    <h2 className="prompt">{stage.prompt}</h2>
-    <p className="activity-tip">瞄准正确的答案靶，点击或轻触发射光球。键盘也可以选靶后按回车。</p>
     <div ref={field} className={`range-field range-${theme}`} aria-label="第一人称光球靶场"
       onPointerMove={event => {
         if (event.pointerType !== 'mouse') return;
@@ -30,6 +30,10 @@ export function RangeStage({ stage, theme, onPass }) {
         field.current.style.setProperty('--aim-x', (event.clientX - bounds.left) + 'px');
         field.current.style.setProperty('--aim-y', (event.clientY - bounds.top) + 'px');
       }}>
+      <div className="range-hud">
+        <p className="range-subject">{stage.subject} · 答题打靶</p>
+        <h2 className="prompt" aria-live="polite">{hit ? '命中！继续前进。' : stage.prompt}</h2>
+      </div>
       <div className="range-horizon" aria-hidden="true" />
       <div className="range-targets">{stage.targets.map((answer, index) =>
         <button className={`range-target range-target-${index}${checked === answer ? hit ? ' target-hit' : ' target-missed' : ''}`}
@@ -44,25 +48,6 @@ export function RangeStage({ stage, theme, onPass }) {
     </div>
     <p className="feedback" aria-live="polite">{hit ? '命中正确答案！信标亮了。' : shot ? '这个靶的答案不对，再看一眼题目。' : ''}</p>
   </div>;
-}
-
-function Investigate({ dossier, onPass }) {
-  const [found, setFound] = useState([]);
-  const complete = found.length === dossier.clues.length;
-  return <>
-    <h2 className="prompt">到现场找线索</h2>
-    <p className="activity-tip">点击地图上的三个地点，翻开看到的证据。</p>
-    <div className="case-scene" aria-label="调查地点">
-      {dossier.clues.map(({ icon, spot, text }, index) => <div className="case-spot" key={spot}>
-        <button aria-expanded={found.includes(index)} onClick={() => {
-          setFound(current => current.includes(index) ? current : [...current, index]);
-        }}><span aria-hidden="true">{icon}</span>{spot}</button>
-        {found.includes(index) && <p>{text}</p>}
-      </div>)}
-    </div>
-    <p className="feedback" aria-live="polite">已找到 {found.length} / {dossier.clues.length} 条线索</p>
-    <button className="primary" disabled={!complete} onClick={onPass}>带回调查板</button>
-  </>;
 }
 
 function Connect({ dossier, onPass }) {
@@ -82,6 +67,7 @@ function Connect({ dossier, onPass }) {
     </div>
     <div className="case-people" aria-label="线索比对结果">
       {dossier.suspects.map((name, index) => <span className={candidates.includes(index) ? 'candidate' : 'eliminated'} key={name}>
+        <span className="suspect-portrait" aria-hidden="true">{dossier.portraits[index]}</span>
         {name}<small>{candidates.includes(index) ? '目前符合' : '已排除'}</small>
       </span>)}
     </div>
@@ -106,7 +92,7 @@ function Resolve({ dossier, onPass }) {
     </details>
     <div className="case-people">
       {dossier.suspects.map((person, index) => <button className="candidate" key={person} aria-pressed={chosen === index}
-        disabled={passed} onClick={() => { setChosen(index); setChecked(false); }}>{person}</button>)}
+        disabled={passed} onClick={() => { setChosen(index); setChecked(false); }}><span className="suspect-portrait" aria-hidden="true">{dossier.portraits[index]}</span>{person}</button>)}
     </div>
     {!passed && <button className="primary" disabled={chosen === null} onClick={() => {
       setChecked(true);
@@ -119,63 +105,95 @@ function Resolve({ dossier, onPass }) {
   </>;
 }
 
-const casePhases = { investigate: Investigate, connect: Connect, resolve: Resolve };
+const casePhases = { investigate: Investigation, connect: Connect, resolve: Resolve };
 
-export function DetectiveStage({ stage, onPass }) {
+export function DetectiveStage({ stage, role, onPass, nextControl }) {
   const Phase = casePhases[stage.phase];
-  return <Phase dossier={stage.dossier} onPass={onPass} />;
+  return <Phase dossier={stage.dossier} role={role} onPass={onPass} nextControl={nextControl} />;
 }
 
 export function SimulationStage({ stage, scene, language, onLanguage, onPass }) {
-  const [selected, setSelected] = useState(null);
+  const [selected, select] = useState(null);
   const [attempt, setAttempt] = useState(null);
   const [used, setUsed] = useState(0);
+  const [acting, setActing] = useState(false);
+  const [fallback, setFallback] = useState(false);
+  const canvas = useRef(null);
+  const actor = useRef(null);
+  const finish = useRef(null);
+  const pending = useRef(false);
+  const timer = useRef(null);
   const english = language === 'en';
   const completed = used === stage.times;
-  const action = english ? stage.actionEn : stage.actionZh;
   const chosen = stage.choices.find(option => option.key === selected);
 
-  function choose(key, useNow = false) {
-    const tool = stage.choices.find(option => option.key === key);
-    if (!tool || completed) return;
-    setAttempt(key);
-    setSelected(key === stage.answer ? key : null);
-    if (key !== stage.answer) return;
-    if (useNow) perform();
-  }
+  useEffect(() => {
+    finish.current = () => {
+      if (!pending.current) return;
+      pending.current = false;
+      const count = used + 1;
+      setUsed(count);
+      setActing(false);
+      if (count === stage.times) onPass();
+    };
+  }, [used, stage.times, onPass]);
 
-  function perform() {
-    if (completed) return;
-    const count = used + 1;
-    setUsed(count);
-    if (count === stage.times) onPass();
+  useEffect(() => {
+    const node = canvas.current;
+    function usePicture(event) {
+      event?.preventDefault();
+      actor.current?.dispose();
+      actor.current = null;
+      setFallback(true);
+      if (pending.current) timer.current = setTimeout(() => finish.current?.(), handoffDuration);
+    }
+    try {
+      actor.current = createJojoActor(node, () => finish.current?.());
+    } catch {
+      usePicture();
+    }
+    node.addEventListener('webglcontextlost', usePicture);
+    return () => {
+      node.removeEventListener('webglcontextlost', usePicture);
+      clearTimeout(timer.current);
+      actor.current?.dispose();
+      actor.current = null;
+    };
+  }, []);
+
+  function handOver(key) {
+    const item = stage.choices.find(option => option.key === key);
+    if (!item || pending.current || completed) return;
+    select(key);
+    setAttempt(key);
+    if (key !== stage.answer) return;
+    pending.current = true;
+    setActing(true);
+    if (actor.current) actor.current.give(key, stage.gesture);
+    else timer.current = setTimeout(() => finish.current?.(), handoffDuration);
   }
 
   return <>
-    <div className="sim-switch" aria-label="学习语言">
-      <button className="listen" aria-pressed={!english} onClick={() => onLanguage('zh')}>中文</button>
-      <button className="listen" aria-pressed={english} onClick={() => onLanguage('en')}>English</button>
-    </div>
+    <LanguageSwitch language={language} onLanguage={onLanguage} />
     <h2 className="prompt">{english ? stage.en : stage.zh}</h2>
-    <p className="activity-tip">{english ? 'Choose a tool, then tap the scene to use it.' : '先选工具，再点场景操作。也可以直接把工具拖进场景。'}</p>
-    <div className="sim-room"
-      onDragOver={event => { if (!completed) event.preventDefault(); }}
+    <p className="activity-tip">{english ? 'Drag a tool to JOJO, or select it and tap JOJO.' : '把工具拖给 JOJO，或先选工具、再点 JOJO。'}</p>
+    <div className="jojo-handoff" onDragOver={event => { if (!acting && !completed) event.preventDefault(); }}
       onDrop={event => {
         event.preventDefault();
         const data = event.dataTransfer.getData('text/plain');
-        if (data.startsWith('sim:')) choose(data.slice(4), true);
+        if (data.startsWith('sim:')) handOver(data.slice(4));
       }}>
-      <img className="sim-character-art" src={scene} alt="" />
-      <button className="sim-action" disabled={!chosen || completed} onClick={perform}>
-        <span aria-hidden="true">{used > 0 ? stage.effect : chosen?.icon || '✨'}</span>
-        {action}
+      <canvas ref={canvas} hidden={fallback} className="jojo-actor" aria-label="3D JOJO" />
+      {fallback && <img className="sim-character-art" src={scene} alt="JOJO" />}
+      <button className="jojo-receive" disabled={!chosen || acting || completed} onClick={() => handOver(chosen.key)}>
+        {acting ? 'JOJO 接过来啦' : completed ? '完成啦' : english ? 'Give it to JOJO' : '递给 JOJO'}
       </button>
       <span className="sim-gauge" aria-live="polite">{used} / {stage.times}</span>
     </div>
     <div className="piece-bank sim-tools" aria-label="可用工具">
-      {stage.choices.map(tool => <button className="piece" disabled={completed} key={tool.key} aria-pressed={selected === tool.key}
-        draggable={!completed} onDragStart={event => event.dataTransfer.setData('text/plain', 'sim:' + tool.key)}
-        onClick={() => choose(tool.key)}>
+      {stage.choices.map(tool => <button className="piece" disabled={acting || completed} key={tool.key} aria-pressed={selected === tool.key}
+        draggable={!acting && !completed} onDragStart={event => event.dataTransfer.setData('text/plain', 'sim:' + tool.key)}
+        onClick={() => { select(tool.key); setAttempt(null); }}>
         <span aria-hidden="true">{tool.icon}</span>{english ? tool.en : tool.zh}
       </button>)}
     </div>
@@ -183,7 +201,8 @@ export function SimulationStage({ stage, scene, language, onLanguage, onPass }) 
       <strong lang="zh">{chosen.zh}</strong><span lang="en">{chosen.en}</span>
       <button className="listen" onClick={() => speak(english ? chosen.en : chosen.zh, language)}>🔊 听词</button>
     </div>}
-    <p className="feedback" aria-live="polite">{completed ? english ? 'Well done!' : '做得好，JOJO 很开心！'
-      : attempt && attempt !== stage.answer ? english ? 'Try a different tool.' : '这个工具不合适，再试试。' : ''}</p>
+    <p className="feedback" aria-live="polite">{completed ? (english ? 'Well done!' : '做得好，JOJO 很开心！')
+      : acting ? (english ? stage.actionEn : stage.actionZh)
+        : attempt && attempt !== stage.answer ? (english ? 'Try a different tool.' : '这个工具不合适，再试试。') : ''}</p>
   </>;
 }

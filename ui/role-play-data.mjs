@@ -1,16 +1,46 @@
-import { subjectsForGrade } from './grades.mjs';
-
+import { builders, hairStages } from './jojo-mechanics.mjs';
 const ranges = {
-  wings: [['语文', 0], ['数学', 1], ['英语', 2]],
-  cosmic: [['数学', 0], ['英语', 1], ['语文', 2]],
+  wings: [
+    ['拼音', [
+      ['“猫”的拼音是什么？', 'māo', 'máo', 'mǎo'],
+      ['风筝上画了一朵花，“花”的拼音是什么？', 'huā', 'hū', 'huá'],
+      ['阿卡斯的风筝像条鱼，“鱼”的拼音是什么？', 'yú', 'yù', 'wú'],
+    ]],
+    ['计算', [
+      ['多多有 3 块长木板和 4 块短木板。一共有几块？', '7', '6', '8'],
+      ['工具箱里有 9 个夹子，用掉 5 个，还剩几个？', '4', '5', '3'],
+      ['树屋的两扇窗各要 4 颗螺丝，一共需要几颗？', '8', '9', '6'],
+    ]],
+    ['英语', [
+      ['看见小马的路标了！“马”用英语怎么说？', 'horse', 'house', 'duck'],
+      ['“山谷”怎么说？', 'valley', 'airport', 'school'],
+      ['找到小马了。用英语说“我们找到它了！”', 'We found it!', 'We lost it!', 'Wait here!'],
+    ]],
+  ],
+  cosmic: [
+    ['计算', [
+      ['第一批送到 3 壶水，第二批再送 2 壶，一共送几壶？', '5', '4', '6'],
+      ['6 条毯子平均分给 3 只小动物，每只分几条？', '2', '3', '4'],
+      ['补给站原有 12 个箱子，已经发出 7 个，还剩几个？', '5', '4', '6'],
+    ]],
+    ['英语', [
+      ['闪电在找灯塔。“灯塔”用英语怎么说？', 'lighthouse', 'bridge', 'forest'],
+      ['需要更换电池，“电池”用英语怎么说？', 'battery', 'bottle', 'basket'],
+      ['信号灯亮了。“绿灯”用英语怎么说？', 'green light', 'red light', 'blue light'],
+    ]],
+    ['观察', [
+      ['彩虹要记录湖水的温度，应该选什么？', '温度计', '望远镜', '指南针'],
+      ['哪件物品适合给水样做标记？', '标签', '手套', '水桶'],
+      ['想观察水滴里很小的东西，用什么仪器更合适？', '显微镜', '卷尺', '听诊器'],
+    ]],
+  ],
 };
 
-export function rangeStages(series, slot, grade) {
-  const [subject, game] = ranges[series][slot];
-  const { games } = subjectsForGrade(grade).find(item => item.name === subject);
-  return games[game][4].map(([prompt, answer, ...others], round) => {
+export function rangeStages(series, slot) {
+  const [subject, questions] = ranges[series][slot];
+  return questions.map(([prompt, answer, ...others], index) => {
     const choices = [answer, ...others];
-    const shift = (grade + slot + round) % choices.length;
+    const shift = (1 + slot + index) % choices.length;
     return { kind: 'range', subject, prompt, answer, targets: choices.slice(shift).concat(choices.slice(0, shift)) };
   });
 }
@@ -18,6 +48,8 @@ export function rangeStages(series, slot, grade) {
 const cases = [
   {
     suspects: ['松鼠果果', '小兔米米', '小鹿斑斑'],
+    species: ['squirrel', 'rabbit', 'deer'],
+    portraits: ['🐿️', '🐰', '🦌'],
     clues: [
       { icon: '🐾', spot: '公园长椅', text: '长椅下的脚印说明，刚才拿书包的人是松鼠果果或小兔米米。', matches: [0, 1] },
       { icon: '☔', spot: '避雨棚', text: '园丁只看见松鼠果果和小鹿斑斑进过避雨棚。书包就在棚里。', matches: [0, 2] },
@@ -27,6 +59,8 @@ const cases = [
   },
   {
     suspects: ['小熊团团', '小狗豆豆', '小鸭点点'],
+    species: ['bear', 'dog', 'duck'],
+    portraits: ['🐻', '🐶', '🦆'],
     clues: [
       { icon: '🚧', spot: '空出来的等候区', text: '老师看见小狗豆豆和小鸭点点经过等候区。路锥随后不见了。', matches: [1, 2] },
       { icon: '🛒', spot: '校门推车', text: '推车上有路锥。门卫说只有小熊团团和小狗豆豆借过这辆车。', matches: [0, 1] },
@@ -36,6 +70,8 @@ const cases = [
   },
   {
     suspects: ['小猫花花', '小刺猬球球', '小羊绵绵'],
+    species: ['cat', 'hedgehog', 'sheep'],
+    portraits: ['🐱', '🦔', '🐑'],
     clues: [
       { icon: '🌼', spot: '花园长廊', text: '园丁看见小猫花花和小羊绵绵来过长廊，原来的路牌就是在这里被发现的。', matches: [0, 2] },
       { icon: '🧤', spot: '修理棚', text: '修理棚的登记簿上只有小刺猬球球和小羊绵绵的名字。路牌现在在棚里。', matches: [1, 2] },
@@ -58,8 +94,6 @@ const tools = {
   toothpaste: { zh: '牙膏', en: 'toothpaste', icon: '🧴' },
   towel: { zh: '毛巾', en: 'towel', icon: '🧻' },
   box: { zh: '收纳盒', en: 'toy box', icon: '📦' },
-  blocks: { zh: '积木', en: 'blocks', icon: '🧱' },
-  car: { zh: '玩具车', en: 'toy car', icon: '🚗' },
   fork: { zh: '叉子', en: 'fork', icon: '🍴' },
   teddy: { zh: '玩具熊', en: 'teddy bear', icon: '🧸' },
   book: { zh: '图画书', en: 'picture book', icon: '📕' },
@@ -77,19 +111,18 @@ const routines = [
     ['往牙刷上挤什么？', 'What goes on the toothbrush?', 'toothpaste', ['soap', 'cup'], '挤一点牙膏', 'Add a little toothpaste', '🫧', 1],
     ['牙刷准备好了，接下来用什么轻轻刷牙？', 'What do you use now to gently brush your teeth?', 'toothbrush', ['towel', 'spoon'], '轻轻刷一刷', 'Brush gently', '✨', 3],
   ],
-  [
-    ['玩具应该放进什么里？', 'Where do the toys belong?', 'box', ['cup', 'towel'], '打开收纳盒', 'Open the toy box', '📦', 1],
-    ['把用来搭小房子的玩具找出来。', 'Find the toys you can build a little house with.', 'blocks', ['fork', 'teddy'], '放回一块积木', 'Put away one block', '🧱', 3],
-    ['把有四个轮子的玩具收起来。', 'Put away the toy with four wheels.', 'car', ['book', 'soap'], '把小车停好', 'Park the toy car', '🚗', 1],
-  ],
+
 ];
 
 export function simStages(slot) {
+  if (slot === 2) return builders;
+  if (slot === 3) return hairStages;
+  const gestures = [ ['tap', 'feed', 'drink'], ['tap', 'tap', 'brush'] ][slot];
   return routines[slot].map(([zh, en, answer, others, actionZh, actionEn, effect, times], index) => {
     const keys = [...others];
     keys.splice((slot + index) % 3, 0, answer);
     return { kind: 'sim', zh, en, answer, choices: keys.map(key => ({ key, ...tools[key] })),
-      actionZh, actionEn, effect, times };
+      actionZh, actionEn, effect, times, gesture: gestures[index] };
   });
 }
 

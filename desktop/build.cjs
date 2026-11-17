@@ -1,6 +1,6 @@
 const { execFileSync } = require('node:child_process');
 const { copyFileSync, cpSync } = require('node:fs');
-const { join } = require('node:path');
+const { resolve } = require('node:path');
 
 const target = process.argv[2];
 if (!target || target === 'frontend') {
@@ -13,5 +13,6 @@ if (!target || target === 'frontend') {
 }
 if (!target || target === 'backend') {
   const executable = process.platform === 'win32' ? 'learning-server.exe' : 'learning-server';
-  execFileSync('go', ['build', '-o', join('.build', executable), '.'], { stdio: 'inherit' });
+  const output = resolve('.build', executable);
+  execFileSync('go', ['build', '-o', output, '.'], { cwd: 'backend', stdio: 'inherit' });
 }

@@ -42,6 +42,7 @@ func main() {
 
 func routes(db *sql.DB, assets string) http.Handler {
 	mux := http.NewServeMux()
+	mux.HandleFunc("POST /api/parent/unlock", unlockParentSettings)
 	mux.HandleFunc("POST /api/chat", newChatHandler())
 	mux.HandleFunc("POST /api/missions", missionHandler(newModelClient()))
 	mux.Handle("GET /", http.FileServer(http.Dir(assets)))
