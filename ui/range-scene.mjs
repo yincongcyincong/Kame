@@ -10,8 +10,8 @@ import { addAirfield, addRescueBase } from './scene-landmarks.mjs';
 import { approachDistance, checkpoints, rangeFieldOfView, walkRoute } from './range-route.mjs';
 
 const palettes = {
-  wings: { road: 0x7b90ad, land: 0x77b990, accent: 0xffd277, tower: 0xf8e2b7, robot: 0xef8e77 },
-  cosmic: { road: 0x60738a, land: 0x83be87, accent: 0xa3ffed, tower: 0x3b97a5, robot: 0xb09dff },
+  wings: { road: 0x7b90ad, land: 0x6cb984, accent: 0xffc13c, tower: 0xf6fbff, robot: 0xe55449 },
+  cosmic: { road: 0x60738a, land: 0x6ab84b, accent: 0x7feee7, tower: 0x2377ba, robot: 0x9d80e9 },
 };
 
 function mesh(geometry, color, x, y, z) {
@@ -24,11 +24,16 @@ function robot(color, accent) {
   const group = new Group();
   group.add(mesh(new RoundedBoxGeometry(.82, .58, .57, 3, .12), color, 0, .72, 0));
   group.add(mesh(new SphereGeometry(.47, 20, 12), color, 0, 1.32, 0));
-  group.add(mesh(new RoundedBoxGeometry(.56, .23, .11, 3, .045), 0x2b285a, 0, 1.34, .39));
+  const visor = mesh(new RoundedBoxGeometry(.56, .23, .11, 3, .045), 0x23344f, 0, 1.34, .39);
+  visor.material.roughness = .27;
+  group.add(visor);
   for (const side of [-1, 1]) {
     group.add(mesh(new CylinderGeometry(.14, .19, .35, 10), accent, side * .49, .68, 0));
     group.add(mesh(new RoundedBoxGeometry(.28, .24, .48, 3, .045), 0x343057, side * .24, .22, .08));
-    group.add(mesh(new SphereGeometry(.064, 12, 8), accent, side * .145, 1.35, .46));
+    const eye = mesh(new SphereGeometry(.061, 14, 9), accent, side * .145, 1.35, .46);
+    eye.material.emissive.setHex(accent);
+    eye.material.emissiveIntensity = .40;
+    group.add(eye);
     group.add(mesh(new CylinderGeometry(.08, .08, .06, 12), 0x516286, side * .49, .69, .148));
   }
   group.add(mesh(new RoundedBoxGeometry(.37, .18, .055, 2, .023), 0xfff3d3, 0, .75, .295));
@@ -110,8 +115,10 @@ export function createRangeScene(canvas, theme, handlers) {
   const colors = palettes[theme] || palettes.wings;
   const scene = new Scene();
   const releaseDaylight = addDaylight(renderer, scene, {
-    horizon: theme === 'wings' ? '#cae7f8' : '#b3e1eb', zenith: theme === 'wings' ? '#679fe5' : '#72c5df',
-    range: [19, 65], center: -25, shadowWidth: 21, shadowDepth: 33,
+    horizon: theme === 'wings' ? '#cde9ff' : '#a9dcfa', zenith: theme === 'wings' ? '#529ef1' : '#348edb',
+    skyLight: 0xeaf5ff, groundLight: theme === 'wings' ? 0xb6bcca : 0x9fba8e,
+    sunColor: theme === 'wings' ? 0xfff9ef : 0xfff4dd,
+    range: [24, 72], center: -25, shadowWidth: 21, shadowDepth: 33,
   });
   const camera = new PerspectiveCamera(60, 1, .06, 74);
   addScenery(scene, theme, colors, handlers.task);

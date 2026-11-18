@@ -117,7 +117,7 @@ const routines = [
 export function simStages(slot) {
   if (slot === 2) return builders;
   if (slot === 3) return hairStages;
-  const gestures = [ ['tap', 'feed', 'drink'], ['tap', 'tap', 'brush'] ][slot];
+  const gestures = [ ['set-bowl', 'feed', 'drink'], ['set-brush', 'toothpaste', 'brush'] ][slot];
   return routines[slot].map(([zh, en, answer, others, actionZh, actionEn, effect, times], index) => {
     const keys = [...others];
     keys.splice((slot + index) % 3, 0, answer);

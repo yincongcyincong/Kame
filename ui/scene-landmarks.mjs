@@ -32,7 +32,7 @@ function rounded(mesh, width, height, depth, radius, color, x, y, z) {
 }
 
 function windowPane(mesh, width, height, x, y, z) {
-  const pane = rounded(mesh, width, height, .085, .035, 0x23638f, x, y, z);
+  const pane = rounded(mesh, width, height, .085, .035, 0x256da4, x, y, z);
   pane.material.roughness = .29;
   pane.material.metalness = .15;
   return pane;
@@ -43,7 +43,7 @@ function cargoAircraft(mesh, x, z, yaw) {
   airframe.position.set(x, 0, z);
   airframe.rotation.y = yaw;
   const ivory = 0xfcf9ed;
-  const coral = 0xe56d61;
+  const coral = 0xe54e42;
   const dark = 0x384c64;
   const hull = mesh(new SphereGeometry(.57, 20, 12), ivory, 0, .76, 0);
   hull.scale.set(1, .88, 2.75);
@@ -64,9 +64,9 @@ function cargoAircraft(mesh, x, z, yaw) {
 }
 
 export function addAirfield(scene, mesh, task) {
-  const blue = 0x2e79c9;
+  const blue = 0x207ad0;
   const white = 0xf3fbff;
-  const yellow = 0xffc753;
+  const yellow = 0xffbe37;
   scene.add(rounded(mesh, 3.3, 3.55, 2.3, .17, white, -5.5, 1.77, -7.4));
   scene.add(rounded(mesh, 3.65, .24, 2.62, .11, 0xafc6df, -5.5, .12, -7.4));
   scene.add(windowPane(mesh, .85, 1.29, -5.5, .91, -6.22));
@@ -150,8 +150,8 @@ function riverSurface(mesh) {
 }
 
 export function addRescueBase(scene, mesh, task) {
-  const blue = 0x2594b7;
-  const white = 0xe8f5ff;
+  const blue = 0x207bc7;
+  const white = 0xf3faff;
   const cyan = 0x64edfa;
   const orange = 0xffb459;
   scene.add(mesh(new CylinderGeometry(2.6, 2.8, .4, 24), blue, -5.9, .18, -10.0));

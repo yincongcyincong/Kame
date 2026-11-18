@@ -65,9 +65,13 @@ function animal(species, name, index) {
   for (const side of [-1, 1]) {
     const eye = new Group();
     eye.position.set(side * .17, 1.64, .402);
-    const iris = ball(0x272343, 0, 0, 0, [.064, .086, .052]);
-    iris.material.roughness = .24;
-    eye.add(iris, ball(0xffffff, -.012, .034, .045, [.018, .023, .014]));
+    eye.rotation.y = side * .18;
+    const white = ball(0xfff6e9, 0, 0, 0, [.079, .092, .049]);
+    const iris = ball(0x67463b, 0, -.007, .034, [.052, .068, .033]);
+    const pupil = ball(0x211a26, 0, -.006, .057, [.032, .049, .016]);
+    iris.material.roughness = .35;
+    pupil.material.roughness = .23;
+    eye.add(white, iris, pupil, ball(0xffffff, -.014, .022, .073, [.014, .019, .008]));
     group.add(eye);
     const brow = ball(0x6d4c46, side * .19, 1.77, .358, [.091, .019, .032]);
     brow.rotation.z = side * -.14;
@@ -88,6 +92,11 @@ function animal(species, name, index) {
       const ear = ball(fur, side * (ears === 'floppy' ? .47 : .31), ears === 'long' ? 2.09 : 1.95, .02, scale);
       ear.rotation.z = side * -.30;
       group.add(ear);
+      if (ears === 'round') {
+        const inner = ball(0xdca390, side * .32, 1.974, .114, [.103, .104, .018]);
+        inner.rotation.z = ear.rotation.z;
+        group.add(inner);
+      }
       if (ears === 'long') group.add(ball(0xf4abc5, side * .36, 2.11, .11, [.078, .25, .04]));
     }
   }
@@ -113,8 +122,8 @@ function decorate(scene, dossier) {
     board.position.set(x, y, z);
     scene.add(board);
   };
-  const lawn = box(0x88bd8a, 0, -.19, -8, [38, .35, 44]);
-  const path = box(0xf7dbaf, 0, -.015, -8.8, [3.5, .08, 23]);
+  const lawn = box(0x6ba973, 0, -.19, -8, [38, .35, 44]);
+  const path = box(0xe4b885, 0, -.015, -8.8, [3.5, .08, 23]);
   lawn.material.map = terrainTile(9, 11, .34);
   path.material.map = terrainTile(2, 10, .24);
   scene.add(lawn, path);
@@ -122,7 +131,7 @@ function decorate(scene, dossier) {
     scene.add(box(0xe9d6ee, x, .021, z, [2.1, .055, 2.2]));
     const side = Math.sign(x);
     scene.add(box([0xf0a6ad, 0xb0a3e1, 0xf6c789][index], side * 6.9, 1.2, z - .8, [2.35, 2.4, 2.4]));
-    const roof = shape(new ConeGeometry(1.86, .96, 4), 0x8865a5, side * 6.9, 2.82, z - .8);
+    const roof = shape(new ConeGeometry(1.86, .96, 4), 0x76518f, side * 6.9, 2.82, z - .8);
     roof.rotation.y = Math.PI / 4;
     scene.add(roof, box(0xdff7fc, side * 6.9, 1.32, z + .41, [.87, .83, .03]));
   });
@@ -161,7 +170,8 @@ export function createDetectiveTown(canvas, dossier, onNearby) {
   const renderer = new WebGLRenderer({ canvas, antialias: true });
   const scene = new Scene();
   const releaseDaylight = addDaylight(renderer, scene, {
-    horizon: '#c3e8f4', zenith: '#72b5e9', range: [15, 39],
+    horizon: '#d0edfc', zenith: '#71afea', range: [20, 43],
+    skyLight: 0xedf7ff, groundLight: 0xb7afb8, sunColor: 0xfff5e7,
     center: -9.5, shadowWidth: 14, shadowDepth: 16,
   });
   const camera = new PerspectiveCamera(64, 1, .07, 45);

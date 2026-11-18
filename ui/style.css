@@ -485,8 +485,8 @@ main { padding-top: 28px; padding-bottom: 36px; }
 .adventure-buttons { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 7px; margin: 8px 0; }
 .flight-field { background: radial-gradient(ellipse at 25% 28%, #fff 0 7%, transparent 8%), radial-gradient(ellipse at 68% 43%, #fff9 0 7%, transparent 8%), linear-gradient(#83cef5 65%, #9bd6a3 65%); }
 .flight-plane, .flight-ring { position: absolute; transform: translate(-50%,-50%); font-size: 33px; transition: left .25s, top .2s; }
-.flight-ring { color: #f3f7ff; font-weight: bold; text-shadow: 0 1px #417cb0; }
-.flight-ring.current { color: #a14713; filter: drop-shadow(0 0 4px #ffe05d); }
+.flight-ring { color: #24497c; font-weight: bold; text-shadow: 0 1px #fff; }
+.flight-ring.current { color: #8b360a; text-shadow: 0 0 2px #fff6bc, 0 0 4px #ffe05d; }
 .flight-ring.cleared { opacity: .35; }
 .flight-bear { position: absolute; right: 8px; bottom: 10px; font-size: 29px; }
 .bridge-field { background: linear-gradient(#d2f0ff 52%, #64bec8 52% 85%, #8aceb5 85%); }
@@ -507,10 +507,10 @@ main { padding-top: 28px; padding-bottom: 36px; }
 .breakfast-field { display: flex; align-items: center; justify-content: center; gap: 26px; background: #ffeccf; }
 .breakfast-field > span { font-size: 51px; transition: transform .25s; }
 .breakfast-tilt { transform: rotate(-28deg); }
-.breakfast-meter { position: relative; width: 50px; height: 132px; overflow: hidden; border-radius: 9px; border: 3px solid #8b739c; background: #fffafa; }
+.breakfast-meter { position: relative; width: 50px; height: 132px; overflow: hidden; border-radius: 9px; border: 3px solid #665179; background: #edf5ff; }
 .breakfast-meter i, .breakfast-meter b { position: absolute; left: 0; width: 100%; }
-.breakfast-meter i { bottom: 0; background: #e7b496; transition: height .14s linear; }
-.breakfast-meter b { top: 20%; height: 20%; border-block: 2px solid #4e9a76; background: #7ecaa748; }
+.breakfast-meter i { bottom: 0; background: #c7743c; border-top: 3px solid #60301e; transition: height .14s linear; }
+.breakfast-meter b { top: 20%; height: 20%; border-block: 2px dashed #216c43; background: #7ecaa748; }
 .playground-field { background: linear-gradient(#dff1ff 80%, #c4e6b1 80%); }
 .playground-pillar { position: absolute; bottom: 17%; width: 9%; transform: translateX(-50%); border-radius: 5px 5px 0 0; background: #999adb; color: white; font-weight: bold; }
 .playground-car { position: absolute; transform: translate(-50%, -90%); font-size: 31px; transition: left .45s linear, top .45s linear; }

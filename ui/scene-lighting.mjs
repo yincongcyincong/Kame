@@ -1,5 +1,5 @@
 import {
-  AgXToneMapping, CanvasTexture, Color, DirectionalLight, EquirectangularReflectionMapping, Fog,
+  NeutralToneMapping, CanvasTexture, Color, DirectionalLight, EquirectangularReflectionMapping, Fog,
   HemisphereLight, Mesh, MeshBasicMaterial, PCFShadowMap, PlaneGeometry, RepeatWrapping, SRGBColorSpace,
 } from 'three';
 
@@ -13,7 +13,7 @@ function canvasTexture(width, height, paint) {
   return texture;
 }
 
-export function addDaylight(renderer, scene, { horizon, zenith, range, center, shadowWidth, shadowDepth }) {
+export function addDaylight(renderer, scene, { horizon, zenith, range, center, shadowWidth, shadowDepth, skyLight, groundLight, sunColor }) {
   const sky = canvasTexture(1024, 512, context => {
     const gradient = context.createLinearGradient(0, 0, 0, 512);
     gradient.addColorStop(0, zenith);
@@ -41,12 +41,12 @@ export function addDaylight(renderer, scene, { horizon, zenith, range, center, s
   scene.background = sky;
   scene.fog = new Fog(new Color(horizon), ...range);
 
-  renderer.toneMapping = AgXToneMapping;
-  renderer.toneMappingExposure = 1.18;
+  renderer.toneMapping = NeutralToneMapping;
+  renderer.toneMappingExposure = 1;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = PCFShadowMap;
-  scene.add(new HemisphereLight(0xddeeff, 0x93ab7c, 1.65));
-  const sun = new DirectionalLight(0xffefd0, 2.55);
+  scene.add(new HemisphereLight(skyLight, groundLight, 1.26));
+  const sun = new DirectionalLight(sunColor, 2.1);
   sun.position.set(-12, 20, center + 6);
   sun.target.position.set(0, 0, center);
   sun.castShadow = true;

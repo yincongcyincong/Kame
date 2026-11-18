@@ -122,6 +122,7 @@ export function SimulationStage({ stage, scene, language, onLanguage, onPass }) 
   const actor = useRef(null);
   const finish = useRef(null);
   const pending = useRef(false);
+  const bathroom = stage.answer === 'toothbrush' || stage.answer === 'toothpaste';
   const timer = useRef(null);
   const english = language === 'en';
   const completed = used === stage.times;
@@ -148,7 +149,7 @@ export function SimulationStage({ stage, scene, language, onLanguage, onPass }) 
       if (pending.current) timer.current = setTimeout(() => finish.current?.(), handoffDuration);
     }
     try {
-      actor.current = createJojoActor(node, () => finish.current?.());
+      actor.current = createJojoActor(node, () => finish.current?.(), bathroom);
     } catch {
       usePicture();
     }
@@ -159,7 +160,7 @@ export function SimulationStage({ stage, scene, language, onLanguage, onPass }) 
       actor.current?.dispose();
       actor.current = null;
     };
-  }, []);
+  }, [bathroom]);
 
   function handOver(key) {
     const item = stage.choices.find(option => option.key === key);
