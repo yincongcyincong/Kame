@@ -1,8 +1,11 @@
+import { CharacterMap, MapPortrait } from './character-map.jsx';
 import { adventureStages } from './adventure.jsx';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { missionSeries, missionStagePassed, presetMissions } from './missions.mjs';
-import { DetectiveStage, SimulationStage } from './role-play.jsx';
-import { RangeStage } from './range-3d.jsx';
+import { recoveryKinds } from './recovery-games.mjs';
+import { shieldGrades } from './shield-questions.mjs';
+import { castDossier } from './role-play-data.mjs';
+import { DetectiveStage, FlatRangeStage, SimulationStage } from './role-play.jsx';
 import { BuildStage, GroomStage } from './jojo-play.jsx';
 import { systemDictationHint } from './speech.mjs';
 
@@ -66,16 +69,26 @@ function MissionStage({ stage, onPass }) {
   </>;
 }
 
-function MissionPlay({ job, series, role, best, onPosition, onBack, onSave }) {
+function hasGradePicker(stage) {
+  return stage.kind === 'range' || stage.kind === 'catchItems' || recoveryKinds.has(stage.kind);
+}
+
+function MissionPlay({ job, series, role: chosenRole, best, onPosition, onBack, onSave }) {
+  const role = chosenRole.id === 'baby-jojo' && job.stages.some(stage => ['sim', 'groom', 'breakfast'].includes(stage.kind))
+    ? series.roles.find(candidate => candidate.id === 'jojo-sister') || chosenRole
+    : chosenRole;
   const [index, setIndex] = useState(0);
   const [language, setLanguage] = useState('zh');
   const [passed, setPassed] = useState(false);
   const [finished, setFinished] = useState(false);
   const [status, setStatus] = useState('');
   const last = index === job.stages.length - 1;
-  const stage = job.stages[index];
+  const rawStage = job.stages[index];
+  const dossier = useMemo(() => rawStage.dossier && castDossier(rawStage.dossier, series.roles, role),
+    [rawStage.dossier, series.roles, role]);
+  const stage = dossier ? { ...rawStage, dossier } : rawStage;
   const scene = job.scene || series.scene;
-  const Stage = { range: RangeStage, detective: DetectiveStage, sim: SimulationStage, groom: GroomStage, blocks: BuildStage, ...adventureStages }[stage.kind] || MissionStage;
+  const Stage = { range: FlatRangeStage, detective: DetectiveStage, sim: SimulationStage, groom: GroomStage, blocks: BuildStage, ...adventureStages }[stage.kind] || MissionStage;
 
   useEffect(() => {
     onPosition({
@@ -106,56 +119,33 @@ function MissionPlay({ job, series, role, best, onPosition, onBack, onSave }) {
     }
   }
 
-  const framed = stage.kind === 'range' || stage.kind === 'detective' || Boolean(adventureStages[stage.kind]);
-  const liveScene = !finished && (stage.kind === 'range' || stage.phase === 'investigate');
-  const next = passed && stage.kind !== 'range' && <button className="primary" onClick={advance}>
+  const ranging = stage.kind === 'range';
+  const next = passed && !ranging && <button className="primary" onClick={advance}>
     {last ? '完成任务' : stage.phase === 'investigate' ? '进入推理' : '下一站'}
   </button>;
-
-  if (framed) return <section className={`mission-screen screen-${series.id}${liveScene ? ' screen-live' : ''}`} aria-label={job.title}>
-    <header className="mission-screen-bar">
-      <button type="button" className="screen-exit" onClick={onBack}>← 退出</button>
-      <div className="screen-title"><strong>{job.title}</strong><small>第 {index + 1} / {job.stages.length} 站</small></div>
-      <span className="screen-player">{role.portrait && <img src={role.portrait} alt="" />}{role.name}</span>
-    </header>
-    {finished ? <div className="screen-debrief">
+  const companions = series.roles.filter(candidate => candidate.id !== role.id);
+  const companion = companions[index % companions.length];
+  const completion = finished ? <div className="scene-completion">
       <p className="result" aria-label="三枚任务徽章">★ ★ ★</p>
       <h2>任务完成，{role.name}！</h2>
       <p role="status">{status}</p>
       {status === '保存失败' && <button className="listen" onClick={record}>重试保存</button>}
       <button className="primary" onClick={onBack}>选下一个任务</button>
-    </div> : <div className={liveScene ? 'screen-action' : 'screen-debrief'}>
-      <Stage key={stage.kind === 'range' ? 'range' : index} station={index} task={job.task} stage={stage}
-        theme={series.id} scene={scene} role={role} onPass={() => setPassed(true)} onAdvance={advance}
-        nextControl={stage.phase === 'investigate' ? next : null} />
-      {stage.phase !== 'investigate' && next}
-    </div>}
-  </section>;
+    </div> : null;
+  const activity = <Stage key={ranging ? 'range-map' : index} station={index} task={job.task} stage={stage}
+    theme={series.id} scene={scene} role={role} companion={companion} onPass={() => setPassed(true)} onAdvance={advance}
+    grade={job.grade} completion={ranging ? completion : undefined} language={language} onLanguage={setLanguage} />;
 
-  return <>
-    <button className="back" onClick={onBack}>← 返回任务选择</button>
-    <section className="play interactive-play mission-play">
-      <div className="mission-briefing">
-        <div>
-          <span className={`game-icon role-${role.color || series.id}`}>{job.icon || role.icon}</span>
-          <h1>{job.title}</h1>
-          <p className="activity-tip">{job.intro}</p>
-        </div>
-        {(!['sim', 'groom'].includes(stage.kind) || finished) && <img className={job.cast ? 'mission-player-art' : undefined} src={scene} alt="" />}
-      </div>
-      {finished ? <>
-        <p className="result" aria-label="三枚任务徽章">★ ★ ★</p>
-        <h2>任务完成，{role.name}！</h2>
-        <p className="muted" role="status">{status}</p>
-        {status === '保存失败' && <button className="listen" onClick={record}>重试保存</button>}
-        <div className="mission-stage-actions"><button className="primary" onClick={onBack}>选下一个任务</button></div>
-      </> : <>
-        <p className="muted">第 {index + 1} / {job.stages.length} 站</p>
-        <Stage key={index} stage={stage} scene={scene} theme={series.id} role={role} language={language} onLanguage={setLanguage} onPass={() => setPassed(true)} />
-        {next}
-      </>}
-    </section>
-  </>;
+  return <section className={`mission-screen screen-${series.id}`} aria-label={job.title}>
+    <header className="mission-screen-bar">
+      <button type="button" className="screen-exit" onClick={onBack}>← 退出</button>
+      <div className="screen-title"><strong>{job.title}</strong><small>{hasGradePicker(stage) && `${job.grade ?? 1} 年级 · `}第 {index + 1} / {job.stages.length} 站</small></div>
+      <span className="screen-player"><MapPortrait role={role} />{role.name}</span>
+    </header>
+    {ranging ? <div className="screen-action">{activity}</div> :
+      <CharacterMap series={series} stage={stage} role={role} station={index} passed={passed}
+        onPass={() => setPassed(true)} nextControl={next} completion={completion}>{activity}</CharacterMap>}
+  </section>;
 }
 
 export function RoleMissions({ settings, progress, onSave, onPosition }) {
@@ -165,6 +155,7 @@ export function RoleMissions({ settings, progress, onSave, onPosition }) {
   const [role, chooseRole] = useState(null);
   const [job, setJob] = useState(null);
   const [briefing, setBriefing] = useState(null);
+  const [quizGrade, setQuizGrade] = useState(1);
   const [generated, setGenerated] = useState(null);
   const [idea, setIdea] = useState('');
   const [error, setError] = useState('');
@@ -218,10 +209,16 @@ export function RoleMissions({ settings, progress, onSave, onPosition }) {
       <div><h1>先选你要扮演的角色</h1><p>{briefing.title}</p></div>
       <img className="series-hero-art" src={series.cover} alt="" />
     </section>
+    {hasGradePicker(briefing.stages[0]) && <label className="mission-grade">
+      题目年级
+      <select value={quizGrade} onChange={event => setQuizGrade(Number(event.target.value))}>
+        {shieldGrades.map(grade => <option key={grade} value={grade}>{grade} 年级</option>)}
+      </select>
+    </label>}
     <div className="mission-cards" aria-label="选择上场角色">
       {series.roles.map(candidate => <button type="button" className={`mission-card role-${candidate.color || series.id}`}
         key={candidate.id} onClick={() => {
-          setJob({ ...briefing, role: candidate, scene: candidate.portrait || series.scene, cast: true });
+          setJob({ ...briefing, ...(hasGradePicker(briefing.stages[0]) && { grade: quizGrade }), role: candidate, scene: candidate.portrait || series.scene, cast: true });
           setBriefing(null);
         }}>
         <RolePortrait role={candidate} />
@@ -277,7 +274,7 @@ export function RoleMissions({ settings, progress, onSave, onPosition }) {
     {!custom ? <>
       <div className="mission-cards" aria-label="预设任务">
         {presetMissions(series).map(candidate => <button className="mission-card" key={candidate.id} onClick={() => {
-          if (series.id !== 'jojo') {
+          if (series.id !== 'jojo' || hasGradePicker(candidate.stages[0])) {
             setBriefing(candidate);
           } else {
             setJob(candidate);

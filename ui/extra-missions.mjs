@@ -2,7 +2,7 @@ export const extraSeries = [
   {
     id: "cosmic",
     title: "宇宙护卫队",
-    tagline: "第一人称答题打靶，校准救援信标",
+    tagline: "2D 答题打靶，校准救援信标",
     example: "比如：让彩虹带着监测仪去湖边，帮小动物找到干净的水。",
     roles: [
       {
@@ -29,25 +29,8 @@ export const extraSeries = [
     ],
     plans: [
       {
-        id: "river-team",
-        role: "storm",
-        title: "河湾救援站",
-        icon: "🛟",
-        intro: "在河湾击中正确的数字靶，给动物居民点亮补给站。"
-      },
-      {
-        id: "lost-signal",
-        role: "lightning",
-        title: "消失的灯塔信号",
-        icon: "📡",
-        intro: "认出正确的英文信标，恢复和通讯站的联系。"
-      },
-      {
-        id: "lake-lab",
-        role: "rainbow",
-        title: "湖边观察实验室",
-        icon: "🔬",
-        intro: "识别正确的文字靶，为湖边实验室校准信号。"
+        id: "river-team", role: "storm", title: "救援基地光球对决", icon: "🛟",
+        intro: "在救援基地依次挑战三位对手。躲开光球，受击后答题恢复护盾。"
       }
     ]
   },

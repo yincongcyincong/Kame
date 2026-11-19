@@ -1,52 +1,114 @@
-import { createJojoActor, handoffDuration } from './jojo-actor.mjs';
 import React, { useEffect, useRef, useState } from 'react';
 import { matchingSuspects } from './role-play-data.mjs';
-import { Investigation } from './detective-3d.jsx';
 import { LanguageSwitch } from './jojo-play.jsx';
 import { speak } from './speech.mjs';
+import { fireOrb, mapCheckpoints, patrolPosition, recoverDuel, startDuel, stepDuel } from './range-map.mjs';
+import { rangeOpponents } from './range-opponents.mjs';
+import { dealShieldQuestions } from './shield-questions.mjs';
+import { useMapControls } from './map-controls.jsx';
 
-export function FlatRangeStage({ stage, theme, onPass }) {
-  const [shot, setShot] = useState(null);
-  const [hit, setHit] = useState(false);
-  const [checked, setChecked] = useState(null);
-  const field = useRef(null);
+export function FlatRangeStage({ theme, role, scene, grade = 1, station = 0, onPass, onAdvance, completion }) {
+  const [duel, setDuel] = useState(() => startDuel(station));
+  const fight = duel.station === station ? duel : startDuel(station);
+  const { position, fieldProps, movement } = useMapControls(fight.status === 'playing');
+  const [wrong, setWrong] = useState(false);
+  const [questionDeck, setQuestionDeck] = useState(() => dealShieldQuestions(grade));
+  const [questionIndex, setQuestionIndex] = useState(0);
+  const question = questionDeck[questionIndex];
+  const player = useRef(position);
+  const advance = useRef(onAdvance);
+  const pass = useRef(onPass);
+  player.current = position;
+  advance.current = onAdvance;
+  pass.current = onPass;
+  const opponents = rangeOpponents[theme] || rangeOpponents.wings;
+  const challenger = opponents[station];
+  const target = patrolPosition(mapCheckpoints[station], fight.time, station);
+  const playing = fight.status === 'playing';
+  const hit = fight.status === 'won';
 
-  function fire(answer) {
-    if (hit) return;
-    const correct = answer === stage.answer;
-    setChecked(answer);
-    setShot(previous => ({ good: correct, count: (previous?.count || 0) + 1 }));
-    if (correct) {
-      setHit(true);
-      onPass();
+  useEffect(() => {
+    if (!playing) return;
+    let frame;
+    let last = performance.now();
+    function tick(now) {
+      const elapsed = (now - last) / 1000;
+      last = now;
+      const current = player.current;
+      const volleyRoll = Math.random();
+      setDuel(previous => stepDuel(previous.station === station ? previous : startDuel(station), current, elapsed, volleyRoll));
+      frame = requestAnimationFrame(tick);
     }
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [playing, station]);
+
+  useEffect(() => {
+    if (!hit) return;
+    pass.current();
+    const timer = setTimeout(() => advance.current?.(), 850);
+    return () => clearTimeout(timer);
+  }, [hit]);
+
+  function fire(aim) {
+    if (!playing) return;
+    setDuel(previous => fireOrb(previous.station === station ? previous : startDuel(station), position, aim));
   }
 
-  return <div className="range-stage">
-    <div ref={field} className={`range-field range-${theme}`} aria-label="第一人称光球靶场"
-      onPointerMove={event => {
-        if (event.pointerType !== 'mouse') return;
-        const bounds = field.current.getBoundingClientRect();
-        field.current.style.setProperty('--aim-x', (event.clientX - bounds.left) + 'px');
-        field.current.style.setProperty('--aim-y', (event.clientY - bounds.top) + 'px');
+  function answer(value) {
+    if (value !== question.answer) { setWrong(true); return; }
+    if (questionIndex + 1 === questionDeck.length) {
+      setQuestionDeck(dealShieldQuestions(grade, Math.random, question.prompt));
+      setQuestionIndex(0);
+    } else {
+      setQuestionIndex(questionIndex + 1);
+    }
+    setWrong(false);
+    setDuel(recoverDuel);
+  }
+
+  return <div className={`range-stage map-range map-${theme}`}>
+    <div {...fieldProps} className="range-map" aria-label="俯视任务地图，使用方向键或 WASD 移动，空格发射光球"
+      onKeyDown={event => {
+        fieldProps.onKeyDown(event);
+        if (event.code !== 'Space' || event.target !== event.currentTarget) return;
+        event.preventDefault();
+        if (!event.repeat) fire(target);
+      }}
+      onPointerDown={event => {
+        if (event.button !== 0 || event.target !== event.currentTarget || !playing) return;
+        const bounds = event.currentTarget.getBoundingClientRect();
+        fire({ x: 100 * (event.clientX - bounds.left) / bounds.width, y: 100 * (event.clientY - bounds.top) / bounds.height });
       }}>
-      <div className="range-hud">
-        <p className="range-subject">{stage.subject} · 答题打靶</p>
-        <h2 className="prompt" aria-live="polite">{hit ? '命中！继续前进。' : stage.prompt}</h2>
+      <span className="range-map-base">{theme === 'cosmic' ? '救援基地' : '世界机场'}</span>
+      <div className="range-map-banner" role="status">
+        {hit ? '击败' + challenger.name + '！' : !playing ? '你被击中了，答题恢复护盾' :
+          fight.warning ? challenger.name + '准备反击！快躲开' : '移动躲避，点击地图或按空格发射光球'}
       </div>
-      <div className="range-horizon" aria-hidden="true" />
-      <div className="range-targets">{stage.targets.map((answer, index) =>
-        <button className={`range-target range-target-${index}${checked === answer ? hit ? ' target-hit' : ' target-missed' : ''}`}
-          key={answer} disabled={hit} onClick={() => fire(answer)} aria-label={`击中答案 ${answer}`}>
-          <span aria-hidden="true" className="target-rings" />
-          <span>{answer}</span>
-        </button>
-      )}</div>
-      <span className="range-crosshair" aria-hidden="true">⊕</span>
-      <span className="range-launcher" aria-hidden="true"><i /></span>
-      {shot && <span key={shot.count} className={'range-pulse ' + (shot.good ? ' pulse-hit' : ' pulse-miss')} aria-hidden="true" />}
+      {!hit && <div className={`range-map-enemy current${fight.warning ? ' charging' : ''}`}
+        style={{ left: target.x + '%', top: target.y + '%' }}>
+        <span className="range-map-opponent" data-opponent={challenger.id}><img src={challenger.portrait} alt="" /></span>
+        <small>{challenger.name}</small>
+      </div>}
+      {fight.warning && <i className="range-map-warning" style={{ left: fight.warning.x + '%', top: fight.warning.y + '%' }} aria-hidden="true" />}
+      <div className="range-map-actor" style={{ left: position.x + '%', top: position.y + '%' }}>
+        <img src={role?.portrait || scene || '/art/wings-cover.jpg'} alt={role?.name || ''} data-role={role?.id} />
+      </div>
+      {fight.shots.map((shot, index) => <i key={index} className={`duel-orb${shot.hostile ? ' hostile' : ''}`}
+        style={{ left: shot.x + '%', top: shot.y + '%' }} aria-hidden="true" />)}
+      {hit && <span className="range-map-pop" style={{ left: target.x + '%', top: target.y + '%' }} aria-hidden="true">✦ · ✦</span>}
+      <button type="button" className="primary range-map-fire" disabled={!playing} onClick={() => fire(target)}>发射光球</button>
+      {movement}
     </div>
-    <p className="feedback" aria-live="polite">{hit ? '命中正确答案！信标亮了。' : shot ? '这个靶的答案不对，再看一眼题目。' : ''}</p>
+    <section className="range-map-question scene-interaction" aria-label="护盾状态">
+      {completion || (fight.status === 'question' ? <>
+        <strong>{question.subject} · {question.prompt}</strong>
+        <div>
+          {question.options.map(value => <button className="piece" key={value} onClick={() => answer(value)}>{value}</button>)}
+        </div>
+        {wrong && <small role="status">再想想，答对就能恢复护盾。</small>}
+      </> : <p className="scene-interaction-idle">{hit ? '已击败对手，正在解锁下一处挑战。' : '护盾正常'}</p>)}
+    </section>
   </div>;
 }
 
@@ -67,7 +129,7 @@ function Connect({ dossier, onPass }) {
     </div>
     <div className="case-people" aria-label="线索比对结果">
       {dossier.suspects.map((name, index) => <span className={candidates.includes(index) ? 'candidate' : 'eliminated'} key={name}>
-        <span className="suspect-portrait" aria-hidden="true">{dossier.portraits[index]}</span>
+        <img className="suspect-portrait" src={dossier.portraitSources[index]} alt="" />
         {name}<small>{candidates.includes(index) ? '目前符合' : '已排除'}</small>
       </span>)}
     </div>
@@ -92,7 +154,7 @@ function Resolve({ dossier, onPass }) {
     </details>
     <div className="case-people">
       {dossier.suspects.map((person, index) => <button className="candidate" key={person} aria-pressed={chosen === index}
-        disabled={passed} onClick={() => { setChosen(index); setChecked(false); }}><span className="suspect-portrait" aria-hidden="true">{dossier.portraits[index]}</span>{person}</button>)}
+        disabled={passed} onClick={() => { setChosen(index); setChecked(false); }}><img className="suspect-portrait" src={dossier.portraitSources[index]} alt="" />{person}</button>)}
     </div>
     {!passed && <button className="primary" disabled={chosen === null} onClick={() => {
       setChecked(true);
@@ -105,11 +167,11 @@ function Resolve({ dossier, onPass }) {
   </>;
 }
 
-const casePhases = { investigate: Investigation, connect: Connect, resolve: Resolve };
+const casePhases = { connect: Connect, resolve: Resolve };
 
-export function DetectiveStage({ stage, role, onPass, nextControl }) {
+export function DetectiveStage({ stage, role, onPass }) {
   const Phase = casePhases[stage.phase];
-  return <Phase dossier={stage.dossier} role={role} onPass={onPass} nextControl={nextControl} />;
+  return <Phase dossier={stage.dossier} role={role} onPass={onPass} />;
 }
 
 export function SimulationStage({ stage, scene, language, onLanguage, onPass }) {
@@ -117,50 +179,15 @@ export function SimulationStage({ stage, scene, language, onLanguage, onPass }) 
   const [attempt, setAttempt] = useState(null);
   const [used, setUsed] = useState(0);
   const [acting, setActing] = useState(false);
-  const [fallback, setFallback] = useState(false);
-  const canvas = useRef(null);
-  const actor = useRef(null);
-  const finish = useRef(null);
-  const pending = useRef(false);
-  const bathroom = stage.answer === 'toothbrush' || stage.answer === 'toothpaste';
+  const [phase, setPhase] = useState('idle');
   const timer = useRef(null);
+  const pending = useRef(false);
   const english = language === 'en';
   const completed = used === stage.times;
   const chosen = stage.choices.find(option => option.key === selected);
+  const bathroom = stage.answer === 'toothbrush' || stage.answer === 'toothpaste';
 
-  useEffect(() => {
-    finish.current = () => {
-      if (!pending.current) return;
-      pending.current = false;
-      const count = used + 1;
-      setUsed(count);
-      setActing(false);
-      if (count === stage.times) onPass();
-    };
-  }, [used, stage.times, onPass]);
-
-  useEffect(() => {
-    const node = canvas.current;
-    function usePicture(event) {
-      event?.preventDefault();
-      actor.current?.dispose();
-      actor.current = null;
-      setFallback(true);
-      if (pending.current) timer.current = setTimeout(() => finish.current?.(), handoffDuration);
-    }
-    try {
-      actor.current = createJojoActor(node, () => finish.current?.(), bathroom);
-    } catch {
-      usePicture();
-    }
-    node.addEventListener('webglcontextlost', usePicture);
-    return () => {
-      node.removeEventListener('webglcontextlost', usePicture);
-      clearTimeout(timer.current);
-      actor.current?.dispose();
-      actor.current = null;
-    };
-  }, [bathroom]);
+  useEffect(() => () => clearTimeout(timer.current), []);
 
   function handOver(key) {
     const item = stage.choices.find(option => option.key === key);
@@ -170,8 +197,18 @@ export function SimulationStage({ stage, scene, language, onLanguage, onPass }) 
     if (key !== stage.answer) return;
     pending.current = true;
     setActing(true);
-    if (actor.current) actor.current.give(key, stage.gesture);
-    else timer.current = setTimeout(() => finish.current?.(), handoffDuration);
+    setPhase('receive');
+    timer.current = setTimeout(() => {
+      setPhase('perform');
+      timer.current = setTimeout(() => {
+        pending.current = false;
+        setActing(false);
+        setPhase('done');
+        const count = used + 1;
+        setUsed(count);
+        if (count === stage.times) onPass();
+      }, 950);
+    }, 450);
   }
 
   return <>
@@ -184,8 +221,13 @@ export function SimulationStage({ stage, scene, language, onLanguage, onPass }) 
         const data = event.dataTransfer.getData('text/plain');
         if (data.startsWith('sim:')) handOver(data.slice(4));
       }}>
-      <canvas ref={canvas} hidden={fallback} className="jojo-actor" aria-label="3D JOJO" />
-      {fallback && <img className="sim-character-art" src={scene} alt="JOJO" />}
+      <div className={`flat-jojo flat-jojo-${phase} flat-jojo-${stage.gesture}${bathroom ? ' flat-jojo-bath' : ''}`}>
+        <img src={scene} alt="动画中的 JOJO" />
+        {(acting || (phase === 'done' && stage.gesture.startsWith('set-'))) &&
+          <span className="flat-jojo-prop" aria-hidden="true">{chosen?.icon}</span>}
+        {phase === 'perform' && stage.gesture === 'brush' && <span className="flat-jojo-effect" aria-hidden="true">🫧</span>}
+        {phase === 'perform' && stage.gesture === 'toothpaste' && <span className="flat-jojo-effect" aria-hidden="true">🪥</span>}
+      </div>
       <button className="jojo-receive" disabled={!chosen || acting || completed} onClick={() => handOver(chosen.key)}>
         {acting ? 'JOJO 接过来啦' : completed ? '完成啦' : english ? 'Give it to JOJO' : '递给 JOJO'}
       </button>

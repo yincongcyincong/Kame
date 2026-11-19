@@ -1,8 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { bridgeStable, trackRun } from './adventure-data.mjs';
 import { speak } from './speech.mjs';
+import { MapPortrait } from './character-map.jsx';
+import { recoveryStages } from './recovery-stages.jsx';
+import { CatchStage } from './catch-stage.jsx';
+import { LongJump } from './long-jump.jsx';
+import { learningGameStages } from './learning-games.jsx';
 
-function Flight({ stage, onPass }) {
+function Flight({ stage, role, companion, onPass }) {
   const [position, setPosition] = useState(stage.phase === 'takeoff' ? 2 : 1);
   const [leg, setLeg] = useState(0);
   const [flying, setFlying] = useState(false);
@@ -39,8 +44,8 @@ function Flight({ stage, onPass }) {
       }}>
       {stage.goal.map((lane, index) => <span className={'flight-ring ' + (index === leg ? 'current' : index < leg ? 'cleared' : '')}
         key={index} style={{ left: (22 + index * 15) + '%', top: (20 + lane * 30) + '%' }}>◯</span>)}
-      <span className="flight-plane" style={{ left: Math.min(11 + leg * 15, 92) + '%', top: (20 + position * 30) + '%' }} aria-hidden="true">🛩️</span>
-      {landed && stage.phase === 'delivery' && <span className="flight-bear" aria-hidden="true">{delivered ? '🐻✨' : '🐻'}</span>}
+      <span className="flight-plane" style={{ left: Math.min(11 + leg * 15, 92) + '%', top: (20 + position * 30) + '%' }} aria-hidden="true">{role?.portrait ? <img className="adventure-character" src={role.portrait} alt="" /> : '🛩️'}</span>
+      {landed && stage.phase === 'delivery' && <span className="flight-bear activity-partner"><MapPortrait role={companion} />{companion.name}</span>}
     </div>
     <div className="adventure-buttons">
       <button className="listen" onClick={() => steer(-1)} disabled={landed || position === 0} aria-label="升高">↑ 升高</button>
@@ -49,13 +54,13 @@ function Flight({ stage, onPass }) {
       {landed && stage.phase === 'delivery' && <button className="primary" disabled={delivered} onClick={() => {
         setDelivered(true);
         onPass();
-      }}>把包裹交给小熊</button>}
+      }}>把包裹交给{companion.name}</button>}
     </div>
-    <p role="status">{delivered ? '小熊打开了包裹，谢谢你！' : landed ? '航线通过！' : hint || `航标 ${leg} / ${last}`}</p>
+    <p role="status">{delivered ? companion.name + '打开了包裹，谢谢你！' : landed ? '航线通过！' : hint || `航标 ${leg} / ${last}`}</p>
   </div>;
 }
 
-function Bridge({ stage, onPass }) {
+function Bridge({ stage, role, companion, onPass }) {
   const [crane, setCrane] = useState(0);
   const [beam, setBeam] = useState(stage.phase === 'cross' ? 2 : null);
   const [supports, setSupports] = useState([]);
@@ -85,25 +90,25 @@ function Bridge({ stage, onPass }) {
     timer.current = setTimeout(() => {
       setCrossing(false);
       if (stable) { setDone(true); onPass(); }
-      else setHint('小兔走到桥前停住了。桥板两端都要有支撑。');
+      else setHint(companion.name + '在桥前停住了。桥板两端都要有支撑。');
     }, stable ? 1600 : 680);
   }
   return <div className="adventure bridge-game">
     <h2>{stage.phase === 'drive' ? '把救援车开到河边' : stage.phase === 'beam' ? '对准缺口，放下桥板' : '在桥板两端补支撑，再试过桥'}</h2>
     <div className={'adventure-field bridge-field ' + (stage.phase === 'drive' ? 'bridge-road' : '')}>
       {xs.map((x, index) => <span key={x} className={'bridge-marker ' + (index === crane ? 'selected' : '')} style={{ left: x + '%' }}>{index + 1}</span>)}
-      <span className="bridge-crane" style={{ left: xs[crane] + '%' }} aria-hidden="true">{stage.phase === 'drive' ? '🚙' : '🏗️'}</span>
+      <span className="bridge-crane" style={{ left: xs[crane] + '%' }} aria-hidden="true">{role?.portrait && <img className="adventure-character" src={role.portrait} alt="" />}{stage.phase === 'drive' ? '🚙' : '🏗️'}</span>
       {beam !== null && <span className="bridge-plank" aria-hidden="true" />}
       {supports.map(col => <span className="bridge-post" key={col} style={{ left: xs[col] + '%' }} aria-hidden="true" />)}
-      {stage.phase === 'cross' && <span className={'bridge-animal ' + (crossing && bridgeStable(beam, supports) || done ? 'crossed' : crossing ? 'waited' : '')}>🐰</span>}
+      {stage.phase === 'cross' && <span className={'bridge-animal activity-partner ' + (crossing && bridgeStable(beam, supports) || done ? 'crossed' : crossing ? 'waited' : '')}><MapPortrait role={companion} />{companion.name}</span>}
     </div>
     <div className="adventure-buttons">
       <button className="listen" disabled={done || crossing || crane === 0} onClick={() => move(-1)}>← 左移</button>
       <button className="listen" disabled={done || crossing || crane === 4} onClick={() => move(1)}>右移 →</button>
       {stage.phase !== 'drive' && <button className="primary" disabled={done || crossing} onClick={operate}>{stage.phase === 'beam' ? '放下桥板' : supports.includes(crane) ? '取回支撑' : '放置支撑'}</button>}
-      {stage.phase === 'cross' && <button className="listen" disabled={done || crossing} onClick={testBridge}>让小兔试走</button>}
+      {stage.phase === 'cross' && <button className="listen" disabled={done || crossing} onClick={testBridge}>让{companion.name}试走</button>}
     </div>
-    <p role="status">{done ? '成功！' : hint || (stage.phase === 'cross' ? '可以反复调整，再让小兔试走。' : '用方向按钮移动。')}</p>
+    <p role="status">{done ? '成功！' : hint || (stage.phase === 'cross' ? '可以反复调整，再让' + companion.name + '试走。' : '用方向按钮移动。')}</p>
   </div>;
 }
 
@@ -249,4 +254,4 @@ function Playground({ stage, onPass }) {
   </div>;
 }
 
-export const adventureStages = { flight: Flight, bridge: Bridge, timeline: Timeline, breakfast: Breakfast, playground: Playground };
+export const adventureStages = { flight: Flight, bridge: Bridge, timeline: Timeline, breakfast: Breakfast, playground: Playground, longJump: LongJump, catchItems: CatchStage, ...learningGameStages, ...recoveryStages };

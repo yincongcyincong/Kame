@@ -6,7 +6,7 @@ const target = process.argv[2];
 if (!target || target === 'frontend') {
   require('esbuild').buildSync({
     entryPoints: ['ui/app.jsx'], bundle: true, outfile: 'dist/app.js',
-    jsx: 'automatic', minify: true,
+    jsx: 'automatic', minify: true, external: ['/art/*'],
   });
   copyFileSync('ui/index.html', 'dist/index.html');
   cpSync('ui/art', 'dist/art', { recursive: true });

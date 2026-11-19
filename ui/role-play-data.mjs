@@ -81,6 +81,24 @@ const cases = [
   },
 ];
 
+export function castDossier(dossier, officers, player) {
+  const witnesses = officers.filter(officer => officer.id !== player.id);
+  const antel = { id: 'antel', name: '羚羚羊', portrait: '/art/labrador-antel.png' };
+  const [answer] = matchingSuspects(dossier, dossier.clues.map((_, index) => index));
+  witnesses.splice(answer, 0, antel);
+  const rename = text => text.replace(/杜兵|小蝶和园丁|警长/g, '调查员').replace(
+    new RegExp(dossier.suspects.join('|'), 'g'),
+    name => witnesses[dossier.suspects.indexOf(name)].name,
+  );
+  return {
+    ...dossier,
+    suspects: witnesses.map(witness => witness.name),
+    portraitSources: witnesses.map(witness => witness.portrait),
+    clues: dossier.clues.map(clue => ({ ...clue, text: rename(clue.text) })),
+    reveal: rename(dossier.reveal),
+  };
+}
+
 export function caseStages(slot) {
   const dossier = cases[slot];
   return ['investigate', 'connect', 'resolve'].map(phase => ({ kind: 'detective', phase, dossier }));

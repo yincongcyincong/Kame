@@ -1,18 +1,28 @@
+import { learningGames } from './learning-game-data.mjs';
+
 export const adventures = {
   wings: [{
     id: 'airmail', role: 'jet', title: '亲自开飞机送快递', icon: '🛩️',
-    intro: '起飞、穿过云层、在跑道上降落，把包裹交给等候的小熊。',
+    intro: '起飞、穿过云层、在跑道上降落，把包裹交给等候的飞侠。',
     stages: [
       { kind: 'flight', phase: 'takeoff', goal: [2, 2, 2, 1, 0] },
       { kind: 'flight', phase: 'clouds', goal: [1, 0, 0, 1, 2] },
       { kind: 'flight', phase: 'delivery', goal: [0, 1, 1, 2, 2] },
     ],
-  }],
+  }, ...learningGames.wings],
   cosmic: [{
     id: 'crane-bridge', role: 'storm', title: '开救援车搭桥', icon: '🏗️',
-    intro: '开救援车去断桥，操作机械臂放桥板，再补支撑，让小动物安全过河。',
+    intro: '开救援车去断桥，操作机械臂放桥板，再补支撑，让护卫队伙伴安全过河。',
     stages: ['drive', 'beam', 'cross'].map(phase => ({ kind: 'bridge', phase })),
-  }],
+  }, {
+    id: 'long-jump', role: 'lightning', title: '护卫队跳远赛', icon: '🏅',
+    intro: '和护卫队伙伴比跳远。按住空格或按钮蓄力，接近满格时松开起跳。',
+    stages: [
+      { kind: 'longJump', title: '河湾练习场', limit: 1750, maxDistance: 5 },
+      { kind: 'longJump', title: '基地计分赛', limit: 1500, maxDistance: 6 },
+      { kind: 'longJump', title: '护卫队决赛', limit: 1320, maxDistance: 7 },
+    ],
+  }, ...learningGames.cosmic],
   labrador: [{
     id: 'case-replay', role: 'labrador', title: '回放案发现场', icon: '🎬',
     intro: '翻看现场记录，用时间线重建书包、路锥和路牌失踪的经过。',
@@ -27,7 +37,7 @@ export const adventures = {
         ['💨', '大风吹倒了路牌', 8], ['🗺️', '绵绵发现损坏的路牌', 13], ['🧰', '绵绵把路牌带到修理棚', 21],
       ] },
     ],
-  }],
+  }, ...learningGames.labrador],
   jojo: [{
     id: 'breakfast-cafe', role: 'baby-jojo', title: '一起开早餐店', icon: '🍞',
     scene: '/art/jojo-breakfast.jpg', intro: '听 JOJO 点餐，自己倒牛奶、烤面包，再把早餐递给他。',
@@ -47,7 +57,7 @@ export const adventures = {
       { kind: 'playground', heights: [5, 1, 3, 2], title: '接好更长的坡道' },
       { kind: 'playground', heights: [5, 2, 4, 1, 2], title: '搭好通往乐园的整条赛道' },
     ],
-  }],
+  }, ...learningGames.jojo],
 };
 
 export function bridgeStable(beam, supports) {
