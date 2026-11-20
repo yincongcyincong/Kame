@@ -1,3 +1,13 @@
+let playback = 0;
+let playing = false;
+export function cancelGameSpeech() {
+  playback++;
+  window.speechSynthesis?.cancel();
+  if (playing) playbackEvent(false);
+}
+export function isGameSpeaking() { return playing; }
+function playbackEvent(value) { playing = value; window.dispatchEvent(new CustomEvent('game-voice-playback', { detail: value })); }
+
 export function systemDictationHint(platform = navigator.platform) {
   if (/Mac/.test(platform)) return '按 Mac 键盘上的听写键，或使用「系统设置 → 键盘 → 听写」里设定的快捷键。';
   if (/Win/.test(platform)) return '按 Windows + H 开始语音键入。';
@@ -23,12 +33,15 @@ export function speak(text, language = 'zh', onError, { voiceURI = '', rate = 0.
     message.lang = voice.lang;
   }
   message.rate = rate;
-  message.onend = () => onFinish?.();
+  const token = ++playback;
+  const finished = () => { if (token === playback) playbackEvent(false); onFinish?.(); };
+  message.onend = finished;
   message.onerror = event => {
-    onFinish?.();
+    finished();
     if (event.error !== 'canceled' && event.error !== 'interrupted') onError?.();
   };
   synthesis.cancel();
+  playbackEvent(true);
   synthesis.speak(message);
   return true;
 }

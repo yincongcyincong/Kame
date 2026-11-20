@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { registerCompanionMovement } from './companion-bridge.mjs';
 import { startPosition, walkRangeMap } from './range-map.mjs';
 
 const controls = [
@@ -13,6 +14,25 @@ export function useMapControls(enabled = true) {
   const [position, setPosition] = useState(startPosition);
   const field = useRef(null);
   const pressed = useRef(new Map());
+  const current = useRef({ position, enabled });
+  current.current = { position, enabled };
+  useEffect(() => {
+    const pending = new Set();
+    const unregister = registerCompanionMovement(({ direction, duration_ms }, signal) => new Promise((resolve, reject) => {
+      if (!current.current.enabled) { reject(new Error('当前地图暂停，暂时不能移动')); return; }
+      const control = controls.find(item => item.name === ({left:'向左走',right:'向右走',up:'向上走',down:'向下走'})[direction]);
+      if (!control || !Number.isInteger(duration_ms) || duration_ms < 100 || duration_ms > 2000) { reject(new Error('移动参数无效')); return; }
+      if (signal.aborted) { reject(new Error('动作已取消')); return; }
+      const key = Symbol('companion');
+      pressed.current.set(key, control);
+      const cleanup = () => { clearTimeout(item.timer); pressed.current.delete(key); pending.delete(item); signal.removeEventListener('abort', abort); };
+      const abort = () => { cleanup(); reject(new Error('动作已取消')); };
+      const item = { reject: () => { cleanup(); reject(new Error('场景已离开')); }, timer: setTimeout(() => { cleanup(); resolve(); }, duration_ms) };
+      signal.addEventListener('abort', abort, { once: true });
+      pending.add(item);
+    }), () => ({ ...current.current.position, movable: current.current.enabled }));
+    return () => { unregister(); for (const item of pending) { clearTimeout(item.timer); item.reject(new Error('场景已离开')); } pressed.current.clear(); };
+  }, []);
 
   useEffect(() => {
     const clear = () => pressed.current.clear();

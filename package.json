@@ -9,7 +9,8 @@
     "preview": ".build/learning-server",
     "build:frontend": "node desktop/build.cjs frontend",
     "build:backend": "node desktop/build.cjs backend",
-    "test": "node --test ui/missions.test.mjs",
+    "test": "node --test ui/*.test.mjs",
+    "test:companion": "electron desktop/companion-smoke.cjs",
     "prestart": "node desktop/check-electron.cjs"
   },
   "dependencies": {

@@ -42,9 +42,7 @@ func main() {
 
 func routes(db *sql.DB, assets string) http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST /api/parent/unlock", unlockParentSettings)
-	mux.HandleFunc("POST /api/chat", newChatHandler())
-	mux.HandleFunc("POST /api/missions", missionHandler(newModelClient()))
+	newCompanionService().register(mux)
 	mux.Handle("GET /", http.FileServer(http.Dir(assets)))
 	mux.HandleFunc("GET /api/progress", func(w http.ResponseWriter, r *http.Request) {
 		rows, err := db.QueryContext(r.Context(), "SELECT game, stars FROM progress")

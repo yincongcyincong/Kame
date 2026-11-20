@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>CFBundleIdentifier</key><string>com.starrylearning.speech</string>
+<key>CFBundleName</key><string>星星学园语音</string>
+<key>CFBundleExecutable</key><string>learning-speech</string>
+<key>CFBundlePackageType</key><string>APPL</string>
+<key>NSMicrophoneUsageDescription</key><string>听取你的游戏指令，与 AI 伙伴一起玩。</string>
+<key>NSSpeechRecognitionUsageDescription</key><string>将你说的话转为文字，发送给配置的 AI 游戏伙伴。</string>
+<key>LSUIElement</key><true/>
+</dict></plist>
